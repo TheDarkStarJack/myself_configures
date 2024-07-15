@@ -1,2 +1,2 @@
-# database_clint_configures
-Database client tool configuration file
+# myself_configures
+myself configuration file
