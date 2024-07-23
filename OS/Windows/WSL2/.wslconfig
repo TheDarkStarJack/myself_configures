@@ -60,4 +60,3 @@ nestedVirtualization=false
 debugConsole=false
 # 用于打开或关闭 WSL 中 GUI 应用程序 (WSLg) 支持的布尔值。仅适用于 Windows 11。默认true
 guiApplications=true
-
