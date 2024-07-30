@@ -8,6 +8,8 @@
 # 引入 ps-read-line
 Import-Module PSReadLine
 
+# 引入 fzf
+Import-Module PSFzf
 # 引入 posh-git
 ## Import-Module posh-git
 
@@ -47,6 +49,10 @@ Set-PSReadLineOption -PredictionViewStyle ListView
 # 设置 Ctrl-a/e 到行首或者行尾 Linux 习惯操作  使用 Get-PSReadLineKeyHandler 查看所有的按键映射
 Set-PSReadLineKeyHandler -Key "Ctrl+a" -Function BeginningOfLine
 Set-PSReadLineKeyHandler -Key "Ctrl+e" -Function EndOfLine
+
+# 设置 Ctrl+r 加载 fzf 历史记录
+Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+t' -PSReadlineChordReverseHistory 'Ctrl+r'
+
 #-------------------------------  Set Hot-keys END    -------------------------------
 
 #==================== prompt ===========
@@ -153,13 +159,13 @@ function la { Get-ChildItem -Path . -Force | Format-Table -AutoSize }
 function ll { Get-ChildItem -Path . -Force -Hidden | Format-Table -AutoSize }
 
 # Git Shortcuts
-function gs { git status }
+function gits { git status }
 
-function ga { git add . }
+function gita { git add . }
 
-function gc { param($m) git commit -m "$m" }
+function gitc { param($m) git commit -m "$m" }
 
-function gp { git push }
+function gitp { git push }
 
 function g { __zoxide_z github }
 
