@@ -1,15 +1,17 @@
 <#
- echo $profile
- gvim $profile
- * FileName: Microsoft.PowerShell_profile.ps1
+echo $profile
+gvim $profile
+* FileName: Microsoft.PowerShell_profile.ps1
 #>
 
 #------------------------------- Import Modules BEGIN -------------------------------
 # 引入 ps-read-line
-Import-Module PSReadLine
+Import-Module PSReadLine -Scope Global
 
-# 引入 fzf
-Import-Module PSFzf
+# 引入 fzf ，避免重复导入，每次加载时间太久了 超过一秒
+if (-not (Get-Module PSFzf)) {
+	Import-Module PSFzf -Scope Global
+}
 # 引入 posh-git
 ## Import-Module posh-git
 
@@ -51,23 +53,27 @@ Set-PSReadLineKeyHandler -Key "Ctrl+a" -Function BeginningOfLine
 Set-PSReadLineKeyHandler -Key "Ctrl+e" -Function EndOfLine
 
 # 设置 Ctrl+r 加载 fzf 历史记录
-Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+t' -PSReadlineChordReverseHistory 'Ctrl+r'
+if(Get-Module -ListAvailable -Name "PSFzf" -ErrorAction Stop) {
+	Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+t' -PSReadlineChordReverseHistory 'Ctrl+r'
+# 设置 PSFzf 展示的历史记录数量为 10 条，默认展示全部历史记录，会冲刷掉终端已有的消息
+		$env:FZF_DEFAULT_OPTS="--height 10"
+}
 
 #-------------------------------  Set Hot-keys END    -------------------------------
 
 #==================== prompt ===========
 function Prompt {
-    $id = 1
-    $UserName = $env:UserName
-    $hostname = hostname
-    $historyItem = Get-History -Count 1
-    if ($historyItem) {
-        $id = $historyItem.Id + 1
-    }
-    Write-Host -ForegroundColor DarkGray "`n[$(Get-Location)]"
-    Write-Host -NoNewline
-    "($UserName@$hostname):$id > "
-    $Host.UI.RawUI.WindowTitle = "$(Get-Location)"
+	$id = 1
+		$UserName = $env:UserName
+		$hostname = hostname
+		$historyItem = Get-History -Count 1
+		if ($historyItem) {
+			$id = $historyItem.Id + 1
+		}
+	Write-Host -ForegroundColor DarkGray "`n[$(Get-Location)]"
+		Write-Host -NoNewline
+		"($UserName@$hostname):$id > "
+		$Host.UI.RawUI.WindowTitle = "$(Get-Location)"
 }
 
 #=================== 自定义函数 =========
@@ -75,64 +81,118 @@ function Prompt {
 function touch($file) { "" | Out-File $file -Encoding ASCII }
 # 查找文件
 function ff($name) {
-    Get-ChildItem -recurse -filter "*${name}*" -ErrorAction SilentlyContinue | ForEach-Object {
-        Write-Output "$($_.FullName)"
+	Get-ChildItem -recurse -filter "*${name}*" -ErrorAction SilentlyContinue | ForEach-Object {
+		Write-Output "$($_.FullName)"
+	}
+}
+
+# 获取公网 IP 
+function Get-PubIP { (Invoke-WebRequest http://ifconfig.me/ip).Content }
+
+# 获取连接过的wifi的密码
+function Get-WIFIPasswords(){
+    $pfs = netsh wlan show profiles | Select-String "所有用户配置文件"
+
+    foreach ($pf in $pfs) {
+        # 从配置文件中提取 WiFi 网络名称
+        $wifiName = $pf -replace "    所有用户配置文件 : ", ""
+
+        # 获取该 WiFi 网络的详细信息，包括密码
+        $result = netsh wlan show profile name="$wifiName" key=clear
+
+        # 从详细信息中提取密码
+        $password = $result | Select-String "关键内容"
+        if ($password) {
+            $password = $password -replace "    关键内容            : ", ""
+            Write-Output "WiFi网络: $wifiName, 密码: $password"
+        }
     }
 }
 
-# Network Utilities
-function Get-PubIP { (Invoke-WebRequest http://ifconfig.me/ip).Content }
-
 function reload-profile {
-    & $profile
+#	使用 & 或者 . 加载 profile 的时候不会立即生效，当前会话并不会看到效果
+#	& $PROFILE
+	. (Resolve-Path $PROFILE)
 }
 
 function unzip ($file) {
-    Write-Output("Extracting", $file, "to", $pwd)
-    $fullFile = Get-ChildItem -Path $pwd -Filter $file | ForEach-Object { $_.FullName }
-    Expand-Archive -Path $fullFile -DestinationPath $pwd
+	Write-Output("Extracting", $file, "to", $pwd)
+		$fullFile = Get-ChildItem -Path $pwd -Filter $file | ForEach-Object { $_.FullName }
+	Expand-Archive -Path $fullFile -DestinationPath $pwd
 }
 
 function grep($regex, $dir) {
-    if ( $dir ) {
-        Get-ChildItem $dir | select-string $regex
-        return
-    }
-    $input | select-string $regex
+	if ( $dir ) {
+		Get-ChildItem $dir | select-string $regex
+			return
+	}
+	$input | select-string $regex
 }
 
 function df {
-    get-volume
+	get-volume
 }
 
 function sed($file, $find, $replace) {
-    (Get-Content $file).replace("$find", $replace) | Set-Content $file
+	(Get-Content $file).replace("$find", $replace) | Set-Content $file
 }
 
 # function which($name) {
 #     Get-Command $name | Select-Object -ExpandProperty Definition
 # }
+# 获取边境变量信息，按照分号分割换行显示，默认都是一长串字符，不方便查看
+function Get-Path{
+	$env:PATH -split ';'
+}
 
+# 在当前会话设置环境变量
 function export($name, $value) {
-    set-item -force -path "env:$name" -value $value;
+# 也可以直接使用这种方式，不过没有 set-item 灵活
+# $env:MY_VARIABLE 
+	set-item -force -path "env:$name" -value $value;
+}
+
+function unset($name){
+	Remove-Item "env:$name"
+}
+
+# 设置全局的环境变量 默认为当前用户设置
+function Set-Path($name,$value){
+	$EnvName = "$name";
+	$EnvValue = "$value";
+	[System.Environment]::SetEnvironmentVariable($EnvName, $EnvValue, [System.EnvironmentVariableTarget]::User);
+}
+
+function Unset-Path($name){
+	$EnvName = "$name";
+	[System.Environment]::SetEnvironmentVariable($EnvName, $null, [System.EnvironmentVariableTarget]::User);
+}
+
+function uptime {
+	Get-Uptime -Since
+	Get-Uptime
 }
 
 function pkill($name) {
-    Get-Process $name -ErrorAction SilentlyContinue | Stop-Process
+	Get-Process $name -ErrorAction SilentlyContinue | Stop-Process
 }
 
 function pgrep($name) {
-    Get-Process $name
+	Get-Process $name
+}
+
+function pgrepm($name){
+	Get-Process | Where-Object -Property ProcessName  -Match $name
 }
 
 function head {
-  param($Path, $n = 10)
-  Get-Content $Path -Head $n
+	param($Path, $n = 10)
+		Get-Content $Path -Head $n
 }
 
 function tail {
-  param($Path, $n = 10, [switch]$f = $false)
-  Get-Content $Path -Tail $n -Wait:$f
+	param($Path, $n = 10, [switch]$f = $false)
+		Get-Content $Path -Tail $n -Wait:$f
 }
 
 # Quick File Creation
@@ -169,16 +229,16 @@ function gitp { git push }
 
 function g { __zoxide_z github }
 
-function gcl { git clone "$args" }
+function gitcl { git clone "$args" }
 
-function gcom {
-    git add .
-    git commit -m "$args"
+function gitcom {
+	git add .
+		git commit -m "$args"
 }
 function lazyg {
-    git add .
-    git commit -m "$args"
-    git push
+	git add .
+		git commit -m "$args"
+		git push
 }
 
 # Quick Access to System Information
@@ -187,7 +247,7 @@ function sysinfo { Get-ComputerInfo }
 # Networking Utilities
 function flushdns {
 	Clear-DnsClientCache
-	Write-Host "DNS has been flushed"
+		Write-Host "DNS has been flushed"
 }
 
 # Clipboard Utilities
@@ -197,105 +257,113 @@ function pst { Get-Clipboard }
 
 # Enhanced PowerShell Experience
 Set-PSReadLineOption -Colors @{
-    Command = 'Yellow'
-    Parameter = 'Green'
-    String = 'DarkCyan'
+	Command = 'Yellow'
+		Parameter = 'Green'
+		String = 'DarkCyan'
 }
 
 $PSROptions = @{
-    ContinuationPrompt = '  '
-    Colors             = @{
-    Parameter          = $PSStyle.Foreground.Magenta
-    Selection          = $PSStyle.Background.Black
-    InLinePrediction   = $PSStyle.Foreground.BrightYellow + $PSStyle.Background.BrightBlack
-    }
+	ContinuationPrompt = '  '
+		Colors             = @{
+			Parameter          = $PSStyle.Foreground.Magenta
+				Selection          = $PSStyle.Background.Black
+				InLinePrediction   = $PSStyle.Foreground.BrightYellow + $PSStyle.Background.BrightBlack
+		}
 }
 Set-PSReadLineOption @PSROptions
 # Help Function
 function Show-Help {
-    @"
-PowerShell Profile Help
-=======================
+	@"
+		PowerShell Profile Help
+		=======================
 
-Update-Profile - Checks for profile updates from a remote repository and updates if necessary.
+		Edit-Profile - Opens the current user's profile for editing using the configured editor.
 
-Update-PowerShell - Checks for the latest PowerShell release and updates if a new version is available.
+		touch <file> - Creates a new empty file.
 
-Edit-Profile - Opens the current user's profile for editing using the configured editor.
+		ff <name> - Finds files recursively with the specified name.
 
-touch <file> - Creates a new empty file.
+		Get-PubIP - Retrieves the public IP address of the machine.
 
-ff <name> - Finds files recursively with the specified name.
+		Get-WIFIPasswords - Get account passwords for all WiFi connections.
 
-Get-PubIP - Retrieves the public IP address of the machine.
+		winutil - Runs the WinUtil script from Chris Titus Tech.
 
-winutil - Runs the WinUtil script from Chris Titus Tech.
+		uptime - Displays the system uptime : get-uptime -Since.
 
-uptime - Displays the system uptime.
+		reload-profile - Reloads the current user's PowerShell profile.
 
-reload-profile - Reloads the current user's PowerShell profile.
+		unzip <file> - Extracts a zip file to the current directory.
 
-unzip <file> - Extracts a zip file to the current directory.
+		hb <file> - Uploads the specified file's content to a hastebin-like service and returns the URL.
 
-hb <file> - Uploads the specified file's content to a hastebin-like service and returns the URL.
+		grep <regex> [dir] - Searches for a regex pattern in files within the specified directory or from the pipeline input.
 
-grep <regex> [dir] - Searches for a regex pattern in files within the specified directory or from the pipeline input.
+		df - Displays information about volumes.
 
-df - Displays information about volumes.
+		sed <file> <find> <replace> - Replaces text in a file.
 
-sed <file> <find> <replace> - Replaces text in a file.
+		which <name> - Shows the path of the command.
 
-which <name> - Shows the path of the command.
+		Get-Path - Show global environment variables.
 
-export <name> <value> - Sets an environment variable.
+		export <name> <value> - Sets an environment variable for the current session.
 
-pkill <name> - Kills processes by name.
+		unset <name> - Unset an environment variable for the current session.
 
-pgrep <name> - Lists processes by name.
+		Set-Path <name> <value> - set an global environment variable for the current user.
 
-head <path> [n] - Displays the first n lines of a file (default 10).
+		Unset-Path <name> - unset an global environment variable for the current user.
 
-tail <path> [n] - Displays the last n lines of a file (default 10).
+		pkill <name> - Kills processes by name.
 
-nf <name> - Creates a new file with the specified name.
+		pgrep <name> - Lists processes by name.
 
-mkcd <dir> - Creates and changes to a new directory.
+		pgrepm <name> - Lists processes by match name.
 
-docs - Changes the current directory to the user's Documents folder.
+		head <path> [n] - Displays the first n lines of a file (default 10).
 
-dtop - Changes the current directory to the user's Desktop folder.
+		tail <path> [n] - Displays the last n lines of a file (default 10).
 
-ep - Opens the profile for editing.
+		nf <name> - Creates a new file with the specified name.
 
-k9 <name> - Kills a process by name.
+		mkcd <dir> - Creates and changes to a new directory.
 
-la - Lists all files in the current directory with detailed formatting.
+		docs - Changes the current directory to the user's Documents folder.
 
-ll - Lists all files, including hidden, in the current directory with detailed formatting.
+		dtop - Changes the current directory to the user's Desktop folder.
 
-gs - Shortcut for 'git status'.
+		ep - Opens the profile for editing.
 
-ga - Shortcut for 'git add .'.
+		k9 <name> - Kills a process by name.
 
-gc <message> - Shortcut for 'git commit -m'.
+		la - Lists all files in the current directory with detailed formatting.
 
-gp - Shortcut for 'git push'.
+		ll - Lists all files, including hidden, in the current directory with detailed formatting.
 
-g - Changes to the GitHub directory.
+		gits - Shortcut for 'git status'.
 
-gcom <message> - Adds all changes and commits with the specified message.
+		gita - Shortcut for 'git add .'.
 
-lazyg <message> - Adds all changes, commits with the specified message, and pushes to the remote repository.
+		gitc <message> - Shortcut for 'git commit -m'.
 
-sysinfo - Displays detailed system information.
+		gitp - Shortcut for 'git push'.
 
-flushdns - Clears the DNS cache.
+		g - Changes to the GitHub directory.
 
-cpy <text> - Copies the specified text to the clipboard.
+		gitcom <message> - Adds all changes and commits with the specified message.
 
-pst - Retrieves text from the clipboard.
+		lazyg <message> - Adds all changes, commits with the specified message, and pushes to the remote repository.
 
-Use 'Show-Help' to display this help message.
+		sysinfo - Displays detailed system information.
+
+		flushdns - Clears the DNS cache.
+
+		cpy <text> - Copies the specified text to the clipboard.
+
+		pst - Retrieves text from the clipboard.
+
+		Use 'Show-Help' to display this help message.
 "@
 }
 Write-Host "Use 'Show-Help' to display help"
