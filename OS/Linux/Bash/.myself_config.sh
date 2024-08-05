@@ -19,13 +19,20 @@
 
 # set -o nounset                                  # Treat unset variables as an error
 
-fun_lazygit(){
-	if [ -z "`git --version`" ];then
+# git push 
+gitlazy(){
+	if [ ! -z "`git --version`" ];then
 		if [ -z "$1" ];then
 			comment="update config"
 		else
 			comment="$1"
 		fi
-		git add ./* && git commit -m "$comment" # && git push
+		git add --all && git commit -m "$comment" && git push
+		if test "$?" -eq 0;then
+			echo "push ok"
+		else
+			echo "push failed, please check "
+		fi
 	fi
 }
+

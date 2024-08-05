@@ -48,6 +48,12 @@ Set-PSReadLineKeyHandler -Key DownArrow -Function HistorySearchForward
 # 以列表的形式展现提示
 Set-PSReadLineOption -PredictionViewStyle ListView
 
+# 删除光标前所有字符
+Set-PSReadLineKeyHandler -Key "Ctrl+u" -Function BackwardDeleteLine
+
+# 删除当前后所有字符
+Set-PSReadLineKeyHandler -Key "Ctrl+k" -Function DeleteToEnd
+
 # 设置 Ctrl-a/e 到行首或者行尾 Linux 习惯操作  使用 Get-PSReadLineKeyHandler 查看所有的按键映射
 Set-PSReadLineKeyHandler -Key "Ctrl+a" -Function BeginningOfLine
 Set-PSReadLineKeyHandler -Key "Ctrl+e" -Function EndOfLine
