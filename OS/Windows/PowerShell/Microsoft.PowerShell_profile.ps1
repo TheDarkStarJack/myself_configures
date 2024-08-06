@@ -66,25 +66,81 @@ if(Get-Module -ListAvailable -Name "PSFzf" -ErrorAction Stop) {
 }
 
 #-------------------------------  Set Hot-keys END    -------------------------------
-
 #==================== prompt ===========
+# Admin Check and Prompt Customization
+$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
+$adminSuffix = if ($isAdmin) { " [ADMIN]" } else { "" }
+
+# $Host.UI.RawUI.WindowTitle = "PowerShell {0}$adminSuffix" -f $PSVersionTable.PSVersion.ToString()
+
 function Prompt {
-	$id = 1
-		$UserName = $env:UserName
-		$hostname = hostname
-		$historyItem = Get-History -Count 1
-		if ($historyItem) {
-			$id = $historyItem.Id + 1
-		}
-	Write-Host -ForegroundColor DarkGray "`n[$(Get-Location)]"
+	$id = 1;
+	$UserName = $env:UserName;
+	$hostname = hostname;
+	$historyItem = Get-History -Count 1;
+	if ($historyItem) {
+		$id = $historyItem.Id + 1
+	}
+	if ($isAdmin){
+		$identifier = "#"
+		$adminMask = "Admin"
+	}else {
+		$identifier = "$"
+	}
+	Write-Host -ForegroundColor DarkGray "`n[$(Get-Location)] $adminMask"
 		Write-Host -NoNewline
-		"($UserName@$hostname):$id > "
+		"($UserName@$hostname):$id $identifier "
 		$Host.UI.RawUI.WindowTitle = "$(Get-Location)"
 }
 
 #=================== 自定义函数 =========
+# 部分函数参考：https://github.com/ChrisTitusTech/powershell-profile/blob/main/Microsoft.PowerShell_profile.ps1
+#opt-out of telemetry before doing anything, only if PowerShell is run as admin
+if ([bool]([System.Security.Principal.WindowsIdentity]::GetCurrent()).IsSystem) {
+	    [System.Environment]::SetEnvironmentVariable('POWERSHELL_TELEMETRY_OPTOUT', 'true', [System.EnvironmentVariableTarget]::Machine)
+}
+
+# Initial GitHub.com connectivity check with 1 second timeout
+$canConnectToGitHub = Test-Connection github.com -Count 1 -Quiet -TimeoutSeconds 1
+
+# Import Modules and External Profiles
+# Ensure Terminal-Icons module is installed before importing
+if (-not (Get-Module -ListAvailable -Name Terminal-Icons)) {
+	Install-Module -Name Terminal-Icons -Scope CurrentUser -Force -SkipPublisherCheck
+}
+Import-Module -Name Terminal-Icons
+
+$ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+if (Test-Path($ChocolateyProfile)) {
+	Import-Module "$ChocolateyProfile"
+}
+
+# Check for Profile Updates
+function Update-Profile {
+	if (-not $global:canConnectToGitHub) {
+		Write-Host "Skipping profile update check due to GitHub.com not responding within 1 second." -ForegroundColor Yellow
+			return
+	}
+
+	try {
+		$url = "https://github.com/TheDarkStarJack/myself_configures/blob/main/OS/Windows/PowerShell/Microsoft.PowerShell_profile.ps1"
+			$oldhash = Get-FileHash $PROFILE
+			Invoke-RestMethod $url -OutFile "$env:temp/Microsoft.PowerShell_profile.ps1"
+			$newhash = Get-FileHash "$env:temp/Microsoft.PowerShell_profile.ps1"
+			if ($newhash.Hash -ne $oldhash.Hash) {
+				Copy-Item -Path "$env:temp/Microsoft.PowerShell_profile.ps1" -Destination $PROFILE -Force
+					Write-Host "Profile has been updated. Please restart your shell to reflect changes" -ForegroundColor Magenta
+			}
+	} catch {
+		Write-Error "Unable to check for `$profile updates"
+	} finally {
+		Remove-Item "$env:temp/Microsoft.PowerShell_profile.ps1" -ErrorAction SilentlyContinue
+	}
+}
+
 # 创建文件
-function touch($file) { "" | Out-File $file -Encoding ASCII }
+function touch($file) { "" | Out-File $file -Encoding utf8 }
 # 查找文件
 function ff($name) {
 	Get-ChildItem -recurse -filter "*${name}*" -ErrorAction SilentlyContinue | ForEach-Object {
@@ -148,7 +204,7 @@ function sed($file, $find, $replace) {
 # }
 # 获取边境变量信息，按照分号分割换行显示，默认都是一长串字符，不方便查看
 function Get-Path{
-	$env:PATH -split ';'
+	$env:PATH -split ';' | sort
 }
 
 # 在当前会话设置环境变量
@@ -179,6 +235,15 @@ function uptime {
 	Get-Uptime
 }
 
+function top(){
+	While ($true) {
+		# Get-Process | Sort-Object -desc cpu | Select-Object -Property NPM,PM,WS/1024,CPU,Id,SI,ProcessName,StartTime -First 3 | Format-Table
+		Get-Process | Sort-Object -desc cpu | Select-Object -first 30; Sleep -seconds 2; Cls;
+		Write-Host " NPM(K)    PM(M)      WS(M)     CPU(s)      Id  SI ProcessName";
+		Write-Host " ------    -----      -----     ------      --  -- -----------"
+	}
+}
+
 function pkill($name) {
 	Get-Process $name -ErrorAction SilentlyContinue | Stop-Process
 }
@@ -196,6 +261,10 @@ function head {
 		Get-Content $Path -Head $n
 }
 
+function stat($name){
+	Get-ChildItem $name | Select-Object -Property Mode,creationtime,LastWriteTime,LastAccessTime,Length,name,Directory,FullName,Root,LinkTarget
+}
+
 function tail {
 	param($Path, $n = 10, [switch]$f = $false)
 		Get-Content $Path -Tail $n -Wait:$f
@@ -206,6 +275,11 @@ function nf { param($name) New-Item -ItemType "file" -Path . -Name $name }
 
 # Directory Management
 function mkcd { param($dir) mkdir $dir -Force; Set-Location $dir }
+
+# 创建符号链接
+function mklink ($name, $target){
+	New-Item -ItemType SymbolicLink -Path $name -Target $target
+}
 
 ### Quality of Life Aliases
 
@@ -282,8 +356,7 @@ function Show-Help {
 	@"
 		PowerShell Profile Help
 		=======================
-
-		Edit-Profile - Opens the current user's profile for editing using the configured editor.
+		Update-Profile - Update profile file from GitHub.
 
 		touch <file> - Creates a new empty file.
 
@@ -296,6 +369,8 @@ function Show-Help {
 		winutil - Runs the WinUtil script from Chris Titus Tech.
 
 		uptime - Displays the system uptime : get-uptime -Since.
+
+		top -  the top thirty process information is displayed based on CPU usage.
 
 		reload-profile - Reloads the current user's PowerShell profile.
 
@@ -329,11 +404,15 @@ function Show-Help {
 
 		head <path> [n] - Displays the first n lines of a file (default 10).
 
+		stat <name> - get object Attributes,Similar to stat in Linux.
+
 		tail <path> [n] - Displays the last n lines of a file (default 10).
 
 		nf <name> - Creates a new file with the specified name.
 
 		mkcd <dir> - Creates and changes to a new directory.
+
+		mklink <from> <target> - Create symbolic link.
 
 		docs - Changes the current directory to the user's Documents folder.
 
