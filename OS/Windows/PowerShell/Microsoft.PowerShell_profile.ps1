@@ -9,8 +9,9 @@ gvim $profile
 Import-Module PSReadLine -Scope Global
 
 # 引入 fzf ，避免重复导入，每次加载时间太久了 超过一秒
-if (-not (Get-Module PSFzf)) {
-	Import-Module PSFzf -Scope Global
+if (-not (Get-Module PSFzf))
+{
+  Import-Module PSFzf -Scope Global
 }
 # 引入 posh-git
 ## Import-Module posh-git
@@ -59,9 +60,10 @@ Set-PSReadLineKeyHandler -Key "Ctrl+a" -Function BeginningOfLine
 Set-PSReadLineKeyHandler -Key "Ctrl+e" -Function EndOfLine
 
 # 设置 Ctrl+r 加载 fzf 历史记录
-if(Get-Module -ListAvailable -Name "PSFzf" -ErrorAction Stop) {
-	Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+t' -PSReadlineChordReverseHistory 'Ctrl+r'
-# 设置 PSFzf 展示的历史记录数量为 10 条，默认展示全部历史记录，会冲刷掉终端已有的消息
+if(Get-Module -ListAvailable -Name "PSFzf" -ErrorAction Stop)
+{
+  Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+t' -PSReadlineChordReverseHistory 'Ctrl+r'
+  # 设置 PSFzf 展示的历史记录数量为 10 条，默认展示全部历史记录，会冲刷掉终端已有的消息
 		$env:FZF_DEFAULT_OPTS="--height 10"
 }
 
@@ -70,25 +72,33 @@ if(Get-Module -ListAvailable -Name "PSFzf" -ErrorAction Stop) {
 # Admin Check and Prompt Customization
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
-$adminSuffix = if ($isAdmin) { " [ADMIN]" } else { "" }
+$adminSuffix = if ($isAdmin)
+{ " [ADMIN]" 
+} else
+{ "" 
+}
 
 # $Host.UI.RawUI.WindowTitle = "PowerShell {0}$adminSuffix" -f $PSVersionTable.PSVersion.ToString()
 
-function Prompt {
-	$id = 1;
-	$UserName = $env:UserName;
-	$hostname = hostname;
-	$historyItem = Get-History -Count 1;
-	if ($historyItem) {
-		$id = $historyItem.Id + 1
-	}
-	if ($isAdmin){
-		$identifier = "#"
-		$adminMask = "Admin"
-	}else {
-		$identifier = "$"
-	}
-	Write-Host -ForegroundColor DarkGray "`n[$(Get-Location)] $adminMask"
+function Prompt
+{
+  $id = 1;
+  $UserName = $env:UserName;
+  $hostname = hostname;
+  $historyItem = Get-History -Count 1;
+  if ($historyItem)
+  {
+    $id = $historyItem.Id + 1
+  }
+  if ($isAdmin)
+  {
+    $identifier = "#"
+    $adminMask = "Admin"
+  } else
+  {
+    $identifier = "$"
+  }
+  Write-Host -ForegroundColor DarkGray "`n[$(Get-Location)] $adminMask"
 		Write-Host -NoNewline
 		"($UserName@$hostname):$id $identifier "
 		$Host.UI.RawUI.WindowTitle = "$(Get-Location)"
@@ -97,8 +107,9 @@ function Prompt {
 #=================== 自定义函数 =========
 # 部分函数参考：https://github.com/ChrisTitusTech/powershell-profile/blob/main/Microsoft.PowerShell_profile.ps1
 #opt-out of telemetry before doing anything, only if PowerShell is run as admin
-if ([bool]([System.Security.Principal.WindowsIdentity]::GetCurrent()).IsSystem) {
-	    [System.Environment]::SetEnvironmentVariable('POWERSHELL_TELEMETRY_OPTOUT', 'true', [System.EnvironmentVariableTarget]::Machine)
+if ([bool]([System.Security.Principal.WindowsIdentity]::GetCurrent()).IsSystem)
+{
+  [System.Environment]::SetEnvironmentVariable('POWERSHELL_TELEMETRY_OPTOUT', 'true', [System.EnvironmentVariableTarget]::Machine)
 }
 
 # Initial GitHub.com connectivity check with 1 second timeout
@@ -106,96 +117,168 @@ $canConnectToGitHub = Test-Connection github.com -Count 1 -Quiet -TimeoutSeconds
 
 # Import Modules and External Profiles
 # Ensure Terminal-Icons module is installed before importing
-if (-not (Get-Module -ListAvailable -Name Terminal-Icons)) {
-	Install-Module -Name Terminal-Icons -Scope CurrentUser -Force -SkipPublisherCheck
+if (-not (Get-Module -ListAvailable -Name Terminal-Icons))
+{
+  Install-Module -Name Terminal-Icons -Scope CurrentUser -Force -SkipPublisherCheck
 }
 Import-Module -Name Terminal-Icons
 
 $ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-if (Test-Path($ChocolateyProfile)) {
-	Import-Module "$ChocolateyProfile"
+if (Test-Path($ChocolateyProfile))
+{
+  Import-Module "$ChocolateyProfile"
 }
 
 # Check for Profile Updates
-function Update-Profile {
-	if (-not $global:canConnectToGitHub) {
-		Write-Host "Skipping profile update check due to GitHub.com not responding within 1 second." -ForegroundColor Yellow
-			return
-	}
+function Update-Profile
+{
+  if (-not $global:canConnectToGitHub)
+  {
+    Write-Host "Skipping profile update check due to GitHub.com not responding within 1 second." -ForegroundColor Yellow
+    return
+  }
 
-	try {
-		$url = "https://raw.githubusercontent.com/TheDarkStarJack/myself_configures/main/OS/Windows/PowerShell/Microsoft.PowerShell_profile.ps1"
-			$oldhash = Get-FileHash $PROFILE
-			Invoke-RestMethod $url -OutFile "$env:temp/Microsoft.PowerShell_profile.ps1"
-			$newhash = Get-FileHash "$env:temp/Microsoft.PowerShell_profile.ps1"
-			if ($newhash.Hash -ne $oldhash.Hash) {
-				Copy-Item -Path "$env:temp/Microsoft.PowerShell_profile.ps1" -Destination $PROFILE -Force
-					Write-Host "Profile has been updated. Please restart your shell to reflect changes" -ForegroundColor Magenta
-			}
-	} catch {
-		Write-Error "Unable to check for `$profile updates"
-	} finally {
-		Remove-Item "$env:temp/Microsoft.PowerShell_profile.ps1" -ErrorAction SilentlyContinue
-	}
+  try
+  {
+    $url = "https://raw.githubusercontent.com/TheDarkStarJack/myself_configures/main/OS/Windows/PowerShell/Microsoft.PowerShell_profile.ps1"
+    $oldhash = Get-FileHash $PROFILE
+    Invoke-RestMethod $url -OutFile "$env:temp/Microsoft.PowerShell_profile.ps1"
+    $newhash = Get-FileHash "$env:temp/Microsoft.PowerShell_profile.ps1"
+    if ($newhash.Hash -ne $oldhash.Hash)
+    {
+      Copy-Item -Path "$env:temp/Microsoft.PowerShell_profile.ps1" -Destination $PROFILE -Force
+      Write-Host "Profile has been updated. Please restart your shell to reflect changes" -ForegroundColor Magenta
+    }
+  } catch
+  {
+    Write-Error "Unable to check for `$profile updates"
+  } finally
+  {
+    Remove-Item "$env:temp/Microsoft.PowerShell_profile.ps1" -ErrorAction SilentlyContinue
+  }
+}
+
+# 生成新的 hosts 文件 https://answers.microsoft.com/zh-hans/windows/forum/all/hosts%E6%96%87%E4%BB%B6%E4%B8%A2%E5%A4%B1%E6%88%96/a4353b28-8d8a-468e-a7a5-db132ceb36d5
+function Set-Hosts-Tip()
+{
+  #$filepath = $env:windir + "\WinSxS\hosts"
+  #$files = Get-ChildItem -Path $filepath -Recurse
+  ## 遍历每个文件并执行相应操作
+  #foreach ($file in $files)
+  #{
+  #  $destination = Join-Path $filepath $file.Name
+  #  Copy-Item -Path $file.FullName -Destination $destination -Force
+  #  Write-Output $file.FullName
+  #  Start-Process notepad.exe -ArgumentList $file.FullName
+  #}
+  Write-Output {当前用户不是管理员，请使用管理员用户执行}
+  Write-Output {请执行以下命令，如果没有 sudo 命令 ，需要使用管理管运行 cmd 执行}
+  Write-Output {sudo cmd "for /f %P in ('dir %windir%\WinSxS\hosts /b /s') do copy %P %windir%\System33\drivers\etc & echo %P & Notepad %P"}
+  Write-Output {添加 GitHub DNS ，https://gitee.com/TheDarkStar/github-hosts }
+}
+
+## 手动配置 GitHub dns 文件，避免有的时候无法使用 VPN ，从 gitee 同步
+function Set-Hosts()
+{
+  if(-not $isAdmin)
+  {
+    Set-Hosts-Tip
+  } else
+  {
+    # 获取 WinSxS 目录和 System32 目录的完整路径
+    $winSxSDir = Join-Path -Path $env:windir -ChildPath 'WinSxS';
+    $system32Dir = Join-Path -Path $env:windir -ChildPath 'System32\drivers\etc';
+
+    # 遍历 WinSxS 目录下所有名为 hosts 的文件
+    Get-ChildItem -Path $winSxSDir -Filter hosts -Recurse -File | ForEach-Object {
+      # 定义源文件和目标文件的路径
+      $sourceFile = $_.FullName
+      $destinationFile = Join-Path -Path $system32Dir -ChildPath $_.Name
+
+      # 复制文件
+      Copy-Item -Path $sourceFile -Destination $destinationFile
+
+      # 打印文件路径
+      Write-Host "Copied: $($sourceFile)"
+
+      # 使用 Notepad 打开文件
+      #Start-Process -FilePath notepad.exe -ArgumentList $destinationFile
+      notepad $destinationFile
+    }
+  }
 }
 
 # 创建文件
-function touch($file) { "" | Out-File $file -Encoding utf8 }
+function touch($file)
+{ "" | Out-File $file -Encoding utf8 
+}
 # 查找文件
-function ff($name) {
-	Get-ChildItem -recurse -filter "*${name}*" -ErrorAction SilentlyContinue | ForEach-Object {
-		Write-Output "$($_.FullName)"
-	}
+function ff($name)
+{
+  Get-ChildItem -recurse -filter "*${name}*" -ErrorAction SilentlyContinue | ForEach-Object {
+    Write-Output "$($_.FullName)"
+  }
 }
 
 # 获取公网 IP 
-function Get-PubIP { (Invoke-WebRequest http://ifconfig.me/ip).Content }
+function Get-PubIP
+{ (Invoke-WebRequest http://ifconfig.me/ip).Content 
+}
 
 # 获取连接过的wifi的密码
-function Get-WIFIPasswords(){
-    $pfs = netsh wlan show profiles | Select-String "所有用户配置文件"
+function Get-WIFIPasswords()
+{
+  $pfs = netsh wlan show profiles | Select-String "所有用户配置文件"
 
-    foreach ($pf in $pfs) {
-        # 从配置文件中提取 WiFi 网络名称
-        $wifiName = $pf -replace "    所有用户配置文件 : ", ""
+  foreach ($pf in $pfs)
+  {
+    # 从配置文件中提取 WiFi 网络名称
+    $wifiName = $pf -replace "    所有用户配置文件 : ", ""
 
-        # 获取该 WiFi 网络的详细信息，包括密码
-        $result = netsh wlan show profile name="$wifiName" key=clear
+    # 获取该 WiFi 网络的详细信息，包括密码
+    $result = netsh wlan show profile name="$wifiName" key=clear
 
-        # 从详细信息中提取密码
-        $password = $result | Select-String "关键内容"
-        if ($password) {
-            $password = $password -replace "    关键内容            : ", ""
-            Write-Output "WiFi网络: $wifiName, 密码: $password"
-        }
+    # 从详细信息中提取密码
+    $password = $result | Select-String "关键内容"
+    if ($password)
+    {
+      $password = $password -replace "    关键内容            : ", ""
+      Write-Output "WiFi网络: $wifiName, 密码: $password"
     }
+  }
 }
 
-function reload-profile {
-#	使用 & 或者 . 加载 profile 的时候不会立即生效，当前会话并不会看到效果
-#	& $PROFILE
-	. (Resolve-Path $PROFILE)
+function reload-profile
+{
+  #	使用 & 或者 . 加载 profile 的时候不会立即生效，当前会话并不会看到效果
+  #	& $PROFILE
+  . (Resolve-Path $PROFILE)
 }
 
-function unzip ($file) {
-	Write-Output("Extracting", $file, "to", $pwd)
+function unzip ($file)
+{
+  Write-Output("Extracting", $file, "to", $pwd)
 		$fullFile = Get-ChildItem -Path $pwd -Filter $file | ForEach-Object { $_.FullName }
-	Expand-Archive -Path $fullFile -DestinationPath $pwd
+  Expand-Archive -Path $fullFile -DestinationPath $pwd
 }
 
-function grep($regex, $dir) {
-	if ( $dir ) {
-		Get-ChildItem $dir | select-string $regex
-			return
-	}
-	$input | select-string $regex
+function grep($regex, $dir)
+{
+  if ( $dir )
+  {
+    Get-ChildItem $dir | select-string $regex
+    return
+  }
+  $input | select-string $regex
 }
 
-function df {
-	get-volume
+function df
+{
+  get-volume
 }
 
-function sed($file, $find, $replace) {
+function sed($file, $find, $replace)
+{
 	(Get-Content $file).replace("$find", $replace) | Set-Content $file
 }
 
@@ -203,157 +286,210 @@ function sed($file, $find, $replace) {
 #     Get-Command $name | Select-Object -ExpandProperty Definition
 # }
 # 获取边境变量信息，按照分号分割换行显示，默认都是一长串字符，不方便查看
-function Get-Path{
-	$env:PATH -split ';' | sort
+function Get-Path
+{
+  $env:PATH -split ';' | sort
 }
 
 # 在当前会话设置环境变量
-function export($name, $value) {
-# 也可以直接使用这种方式，不过没有 set-item 灵活
-# $env:MY_VARIABLE 
-	set-item -force -path "env:$name" -value $value;
+function export($name, $value)
+{
+  # 也可以直接使用这种方式，不过没有 set-item 灵活
+  # $env:MY_VARIABLE 
+  set-item -force -path "env:$name" -value $value;
 }
 
-function unset($name){
-	Remove-Item "env:$name"
+function unset($name)
+{
+  Remove-Item "env:$name"
 }
 
 # 设置全局的环境变量 默认为当前用户设置
-function Set-Path($name,$value){
-	$EnvName = "$name";
-	$EnvValue = "$value";
-	[System.Environment]::SetEnvironmentVariable($EnvName, $EnvValue, [System.EnvironmentVariableTarget]::User);
+function Set-Path($name,$value)
+{
+  $EnvName = "$name";
+  $EnvValue = "$value";
+  [System.Environment]::SetEnvironmentVariable($EnvName, $EnvValue, [System.EnvironmentVariableTarget]::User);
 }
 
-function Unset-Path($name){
-	$EnvName = "$name";
-	[System.Environment]::SetEnvironmentVariable($EnvName, $null, [System.EnvironmentVariableTarget]::User);
+function Unset-Path($name)
+{
+  $EnvName = "$name";
+  [System.Environment]::SetEnvironmentVariable($EnvName, $null, [System.EnvironmentVariableTarget]::User);
 }
 
-function uptime {
-	Get-Uptime -Since
-	Get-Uptime
+function uptime
+{
+  Get-Uptime -Since
+  Get-Uptime
 }
 
-function top(){
-	While ($true) {
-		# Get-Process | Sort-Object -desc cpu | Select-Object -Property NPM,PM,WS/1024,CPU,Id,SI,ProcessName,StartTime -First 3 | Format-Table
-		Get-Process | Sort-Object -desc cpu | Select-Object -first 30; Sleep -seconds 2; Cls;
-		Write-Host " NPM(K)    PM(M)      WS(M)     CPU(s)      Id  SI ProcessName";
-		Write-Host " ------    -----      -----     ------      --  -- -----------"
-	}
+function top()
+{
+  While ($true)
+  {
+    # Get-Process | Sort-Object -desc cpu | Select-Object -Property NPM,PM,WS/1024,CPU,Id,SI,ProcessName,StartTime -First 3 | Format-Table
+    Get-Process | Sort-Object -desc cpu | Select-Object -first 30; Sleep -seconds 2; Cls;
+    Write-Host " NPM(K)    PM(M)      WS(M)     CPU(s)      Id  SI ProcessName";
+    Write-Host " ------    -----      -----     ------      --  -- -----------"
+  }
 }
 
-function pkill($name) {
-	Get-Process $name -ErrorAction SilentlyContinue | Stop-Process
+function pkill($name)
+{
+  Get-Process $name -ErrorAction SilentlyContinue | Stop-Process
 }
 
-function pgrep($name) {
-	Get-Process $name
+function pgrep($name)
+{
+  Get-Process $name
 }
 
-function pgrepm($name){
-	Get-Process | Where-Object -Property ProcessName  -Match $name
+function pgrepm($name)
+{
+  Get-Process | Where-Object -Property ProcessName  -Match $name
 }
 
-function head {
-	param($Path, $n = 10)
+function head
+{
+  param($Path, $n = 10)
 		Get-Content $Path -Head $n
 }
 
-function stat($name){
-	Get-ChildItem $name | Select-Object -Property Mode,creationtime,LastWriteTime,LastAccessTime,Length,name,Directory,FullName,Root,LinkTarget
+function stat($name)
+{
+  Get-ChildItem $name | Select-Object -Property Mode,creationtime,LastWriteTime,LastAccessTime,Length,name,Directory,FullName,Root,LinkTarget
 }
 
-function tail {
-	param($Path, $n = 10, [switch]$f = $false)
+function tail
+{
+  param($Path, $n = 10, [switch]$f = $false)
 		Get-Content $Path -Tail $n -Wait:$f
 }
 
 # Quick File Creation
-function nf { param($name) New-Item -ItemType "file" -Path . -Name $name }
+function nf
+{ param($name) New-Item -ItemType "file" -Path . -Name $name 
+}
 
 # Directory Management
-function mkcd { param($dir) mkdir $dir -Force; Set-Location $dir }
+function mkcd
+{ param($dir) mkdir $dir -Force; Set-Location $dir 
+}
 
 # 创建符号链接
-function mklink ($name, $target){
-	New-Item -ItemType SymbolicLink -Path $name -Target $target
+function mklink ($name, $target)
+{
+  New-Item -ItemType SymbolicLink -Path $name -Target $target
 }
 
 ### Quality of Life Aliases
 
 # Navigation Shortcuts
-function docs { Set-Location -Path $HOME\Documents }
+function docs
+{ Set-Location -Path $HOME\Documents 
+}
 
-function dtop { Set-Location -Path $HOME\Desktop }
+function dtop
+{ Set-Location -Path $HOME\Desktop 
+}
 
 # Quick Access to Editing the Profile
-function ep { vim $PROFILE }
+function ep
+{ vim $PROFILE 
+}
 
 # Simplified Process Management
-function k9 { Stop-Process -Name $args[0] }
+function k9
+{ Stop-Process -Name $args[0] 
+}
 
 # Enhanced Listing
-function la { Get-ChildItem -Path . -Force | Format-Table -AutoSize }
-function ll { Get-ChildItem -Path . -Force -Hidden | Format-Table -AutoSize }
+function la
+{ Get-ChildItem -Path . -Force | Format-Table -AutoSize 
+}
+function ll
+{ Get-ChildItem -Path . -Force -Hidden | Format-Table -AutoSize 
+}
 
 # Git Shortcuts
-function gits { git status }
+function gits
+{ git status 
+}
 
-function gita { git add . }
+function gita
+{ git add . 
+}
 
-function gitc { param($m) git commit -m "$m" }
+function gitc
+{ param($m) git commit -m "$m" 
+}
 
-function gitp { git push }
+function gitp
+{ git push 
+}
 
-function g { __zoxide_z github }
+function g
+{ __zoxide_z github 
+}
 
-function gitcl { git clone "$args" }
+function gitcl
+{ git clone "$args" 
+}
 
-function gitcom {
-	git add .
+function gitcom
+{
+  git add .
 		git commit -m "$args"
 }
-function lazyg {
-	git add .
+function lazyg
+{
+  git add .
 		git commit -m "$args"
 		git push
 }
 
 # Quick Access to System Information
-function sysinfo { Get-ComputerInfo }
+function sysinfo
+{ Get-ComputerInfo 
+}
 
 # Networking Utilities
-function flushdns {
-	Clear-DnsClientCache
+function flushdns
+{
+  Clear-DnsClientCache
 		Write-Host "DNS has been flushed"
 }
 
 # Clipboard Utilities
-function cpy { Set-Clipboard $args[0] }
+function cpy
+{ Set-Clipboard $args[0] 
+}
 
-function pst { Get-Clipboard }
+function pst
+{ Get-Clipboard 
+}
 
 # Enhanced PowerShell Experience
 Set-PSReadLineOption -Colors @{
-	Command = 'Yellow'
+  Command = 'Yellow'
 		Parameter = 'Green'
 		String = 'DarkCyan'
 }
 
 $PSROptions = @{
-	ContinuationPrompt = '  '
+  ContinuationPrompt = '  '
 		Colors             = @{
-			Parameter          = $PSStyle.Foreground.Magenta
+    Parameter          = $PSStyle.Foreground.Magenta
 				Selection          = $PSStyle.Background.Black
 				InLinePrediction   = $PSStyle.Foreground.BrightYellow + $PSStyle.Background.BrightBlack
 		}
 }
 Set-PSReadLineOption @PSROptions
 # Help Function
-function Show-Help {
-	@"
+function Show-Help
+{
+  @"
 		PowerShell Profile Help
 		=======================
 		Update-Profile - Update profile file from GitHub.
