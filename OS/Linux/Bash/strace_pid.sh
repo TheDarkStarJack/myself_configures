@@ -34,7 +34,8 @@ echo "process info :" && ps -ef | grep "$LogFile" | grep -v grep
 {
         echo "#This file contains the PID information of the Strace process"
         # 在同一时间 pid 大概率不会出现复用的情况，所以这里就不在判断 pid 是否复用的情况了
-        ps -ef | grep "$LogFile" | grep -v grep | awk -v sp="$1" '{ if ($2 -eq sp) {print "kill -15 " $2 ;} else {print "please check error.log,no pid info." }}'
+        #ps -ef | grep "$LogFile" | grep -v grep | awk -v sp="$1" '{ if ($2 -eq sp) {print "kill -15 " $2 ;} else {print "please check error.log,no pid info." }}'
+        ps -ef | grep "$LogFile" | grep -v grep | awk '{ if (NR=1) {print "kill -15 " $2 ;} else {print "please check error.log,no pid info." }}'
         echo "rm -f ${LogDir}/${1}.kill"
 
 } >"${LogDir}/${1}.kill"
