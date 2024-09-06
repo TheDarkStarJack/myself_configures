@@ -35,18 +35,16 @@ echo "process info :" && ps -ef | grep "$LogFile" | grep -v grep
 	echo "#This file contains the PID information of the Strace process"
 	# 在同一时间 pid 大概率不会出现复用的情况，所以这里就不在判断 pid 是否复用的情况了
 	#ps -ef | grep "$LogFile" | grep -v grep | awk -v sp="$1" '{ if ($2 -eq sp) {print "kill -15 " $2 ;} else {print "please check error.log,no pid info." }}'
-	local pmark=$(ps -ef | grep "$LogFile" | grep -v grep | awk '{print $2}') 
-	if test -n "$pmark" ;then 
-		echo "#please check error.log,no pid info." 
-	else 
-		echo "kill -15 " $2  
+	readonly pmark=$(ps -ef | grep "$LogFile" | grep -v grep | awk '{print $2}') 
+	if [[ $( echo "$pmark" | wc -m ) -gt 1 ]] ;then 
+		echo "kill -15 " "$pmark"
 		echo "rm -f ${LogDir}/${1}.kill"
 	fi
 
 } >"${LogDir}/${1}.kill"
 
 # 生成 kill 文件
-local kmark=$(grep "kill -15" "$LogFile" | wc -l)
+readonly kmark=$(grep "kill -15" "${LogDir}/${1}.kill" | wc -l)
 if test "$kmark" -eq 1; then
 	chmod u+x "${LogDir}/${1}.kill"
 	echo "Execute file  ${LogDir}/${1}.kill and terminate the strace process"
