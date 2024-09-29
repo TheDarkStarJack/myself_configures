@@ -49,7 +49,7 @@ esac
 
 fun_clone() {
   if test "curl --silent --output /dev/null $url"; then
-    curl $url | jq '.[] | .ssh_url' | xargs printf 'git clone %s & ' # | sh
+    curl $url | jq '.[] | .ssh_url' | xargs printf 'git clone %s & ' | sh
   else
     echo "please check org or username,curl can not conn"
     exit
