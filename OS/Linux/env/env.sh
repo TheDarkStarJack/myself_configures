@@ -39,6 +39,7 @@ fun_setenv() {
     source $work_dir/.PS1
     $mark_end
     " >>"$user_profile"
+    echo "ok !!!!!!!" && source "$user_profile"
   else
     echo "had myself env, please check."
     exit 0
