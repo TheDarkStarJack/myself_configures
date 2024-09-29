@@ -29,7 +29,7 @@ fun_setenv() {
   readonly work_dir=$(pwd)
   readonly mark_start="## myself env configure start"
   readonly mark_end="## myself env configure end"
-  readonly mark=$(sed '/'"$mark_start"'/,/'"$mark_end"'/p' $user_profile | wc -l)
+  readonly mark=$(sed -n '/'"$mark_start"'/,/'"$mark_end"'/p' $user_profile | wc -l)
   if [[ "$mark" -gt 1 ]]; then
     dtime=$(date +"%m%d%H%M")
     cp "$user_profile" "$user_profile".bak"$dtime"
