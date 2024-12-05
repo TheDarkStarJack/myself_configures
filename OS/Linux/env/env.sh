@@ -40,11 +40,11 @@ fun_setenv() {
     dtime=$(date +"%m%d%H%M")
     cp "$user_profile" "$user_profile".bak"$dtime"
     echo -n "
-    $mark_start
-    source $work_dir/alias
-    source $work_dir/.PS1
-    $mark_end
-    " >>"$user_profile"
+$mark_start
+source $work_dir/alias
+source $work_dir/.PS1
+$mark_end
+" >>"$user_profile"
     echo "ok !!!!!!!" && source "$user_profile"
   else
     echo "had myself env, please check."
