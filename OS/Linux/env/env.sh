@@ -21,7 +21,13 @@
 # set -o nounset # Treat unset variables as an error
 
 fun_getenv() {
-  readonly user_profile="$HOME/.bash_profile"
+  if grep -i red /proc/version &>/dev/null; then
+    readonly user_profile="$HOME/.bash_profile"
+    # echo redhat
+  elif grep -i debian /proc/version &>/dev/null; then
+    readonly user_profile="$HOME/.profile"
+    # echo debian
+  fi
 }
 
 fun_setenv() {
