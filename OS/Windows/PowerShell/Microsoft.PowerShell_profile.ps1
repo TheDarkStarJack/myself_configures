@@ -158,6 +158,14 @@ function Update-Profile
   }
 }
 
+function  Get-TerminialImages
+{
+  $url = "https://darkstaronline.work/WindowsTerminal/wallhaven-oxq8gl.jpg"
+
+  Invoke-WebRequest -Uri $url -OutFile "$env:HOMEPATH/.config/Terminal-image.jpg"
+  
+}
+
 # 生成新的 hosts 文件 https://answers.microsoft.com/zh-hans/windows/forum/all/hosts%E6%96%87%E4%BB%B6%E4%B8%A2%E5%A4%B1%E6%88%96/a4353b28-8d8a-468e-a7a5-db132ceb36d5
 function Set-Hosts-Tip()
 {
@@ -529,6 +537,8 @@ function Show-Help
 		unset <name> - Unset an environment variable for the current session.
 
 		Set-Path <name> <value> - set an global environment variable for the current user.
+
+    Get-TerminialImages - get WindowsTerminal backgroundImage
 
 		Unset-Path <name> - unset an global environment variable for the current user.
 
