@@ -494,6 +494,62 @@ $PSROptions = @{
 		}
 }
 Set-PSReadLineOption @PSROptions
+
+# ollama model download and speed up
+# 因为 ollama 下载模型速度速度会越来越慢慢，所以可以使用该函数利用ollama的自动续传功能进行下载
+function Get-OllamaModels {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$ModelName,
+        [int]$RetryInterval = 60,
+        [int]$MaxAttempts = 10
+    )
+
+    $attempt = 0
+    $modelFound = $false
+
+    while ($attempt -lt $MaxAttempts -and -not $modelFound) {
+        # 检查模型是否存在（精确匹配）
+        $existingModels = ollama list | ForEach-Object { ($_ -split '\s+')[0] }
+        if ($ModelName -in $existingModels) {
+            Write-Host "模型 '$ModelName' 已存在，无需下载。" -ForegroundColor Green
+            $modelFound = $true
+            break
+        }
+
+        # 启动下载进程
+        Write-Host "正在下载模型 '$ModelName' (尝试次数: $($attempt + 1)/$MaxAttempts)..." -ForegroundColor Cyan
+        $process = Start-Process -FilePath "ollama" -ArgumentList "run", $ModelName -PassThru -NoNewWindow
+
+        # 等待一段时间后终止进程
+        Start-Sleep -Seconds $RetryInterval
+        try {
+            Stop-Process -Id $process.Id -Force -ErrorAction Stop
+            Write-Host "已终止下载进程，准备重新启动..." -ForegroundColor Yellow
+        } catch {
+            Write-Host "终止进程失败，可能已自然退出。" -ForegroundColor Red
+        }
+        #$downloadSpeed = Get-DownloadSpeedSomehow  # 根据速度实现下载速度监控自动重新下载
+        #if ($downloadSpeed -lt 100KBps) {
+        #    Stop-Process -Id $process.Id -Force
+        #}
+        # 检查模型是否已成功下载
+        $existingModels = ollama list | ForEach-Object { ($_ -split '\s+')[0] }
+        if ($ModelName -in $existingModels) {
+            Write-Host "模型 '$ModelName' 已成功加载！" -ForegroundColor Green
+            $modelFound = $true
+            break
+        }
+
+        $attempt++
+    }
+
+    if (-not $modelFound) {
+        Write-Host "无法在 $MaxAttempts 次尝试内加载模型 '$ModelName'，请检查网络或模型名称。" -ForegroundColor Red
+        exit 1
+    }
+}
+
 # Help Function
 function Show-Help
 {
@@ -593,6 +649,8 @@ function Show-Help
 		cpy <text> - Copies the specified text to the clipboard.
 
 		pst - Retrieves text from the clipboard.
+
+    Get-OllamaModels -ModelName "llama2" [-RetryInterval 60] [-MaxAttempts 10] - download ollama model and speed up .# 加载 llama2 模型，默认每隔 60 秒重启下载进程，最多尝试 10 次 
 
 		Use 'Show-Help' to display this help message.
 "@
