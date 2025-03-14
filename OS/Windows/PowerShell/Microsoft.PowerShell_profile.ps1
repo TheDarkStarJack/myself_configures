@@ -283,6 +283,8 @@ function grep($regex, $dir)
 function df
 {
   get-volume
+
+  #Get-WmiObject -Class Win32_LogicalDisk | Select-Object DeviceID, VolumeName, @{Name="Size(GB)"; Expression={"{0:N2}" -f ($_.Size / 1GB)}}, @{Name="FreeSpace(GB)"; Expression={"{0:N2}" -f ($_.FreeSpace / 1GB)}}, @{Name="UsedSpace(GB)"; Expression={"{0:N2}" -f (($_.Size - $_.FreeSpace) / 1GB)}}
 }
 
 function sed($file, $find, $replace)
@@ -293,7 +295,7 @@ function sed($file, $find, $replace)
 # function which($name) {
 #     Get-Command $name | Select-Object -ExpandProperty Definition
 # }
-# 获取边境变量信息，按照分号分割换行显示，默认都是一长串字符，不方便查看
+# 获取环境变量信息，按照分号分割换行显示，默认都是一长串字符，不方便查看
 function Get-Path
 {
   $env:PATH -split ';' | sort
@@ -546,7 +548,89 @@ function Get-OllamaModels {
 
     if (-not $modelFound) {
         Write-Host "无法在 $MaxAttempts 次尝试内加载模型 '$ModelName'，请检查网络或模型名称。" -ForegroundColor Red
-        exit 1
+        #exit 1
+    }
+}
+
+## 获取指定目录下的视频文件的播放时长信息
+function Get-VideoDuration {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$Path,
+
+        [switch]$l,        # 显示所有视频的时长信息
+        [switch]$s,        # 按降序排序
+        [int]$n = 10       # 默认显示前10条，支持 -n 3 格式
+    )
+
+    # 检查 ffprobe 是否可用
+    if (-not (Get-Command ffprobe -ErrorAction SilentlyContinue)) {
+        Write-Host "错误：未找到 ffprobe，请先安装 FFmpeg 并添加至环境变量" -ForegroundColor Red
+        return 0
+    }
+
+    # 统一视频扩展名处理（不区分大小写）
+    $videoExtensions = @(".mp4", ".avi", ".mkv", ".mov", ".flv", ".wmv")
+    $videoFiles = Get-ChildItem -Path $Path -Recurse -File | 
+        Where-Object { $videoExtensions -contains $_.Extension.ToLower() }
+
+    # 定义时长转换函数
+    function Format-Duration {
+        param([double]$Seconds)
+        $ts = [TimeSpan]::FromSeconds($Seconds)
+        return "{0}小时 {1:D2}分钟 {2:D2}秒" -f $ts.Hours, $ts.Minutes, $ts.Seconds
+    }
+
+    # 获取所有视频时长
+    $videoDurations = @()
+    foreach ($file in $videoFiles) {
+        try {
+            $jsonOutput = ffprobe -v error -show_entries format=duration -of json "$($file.FullName)"
+            $duration = ($jsonOutput | ConvertFrom-Json).format.duration
+            if ($duration) {
+                $videoDurations += [PSCustomObject]@{
+                    Name     = $file.Name
+                    Path     = $file.FullName
+                    Duration = [math]::Round([decimal]$duration, 2)
+                }
+            }
+        } catch {
+            Write-Host "无法解析文件: $($file.Name)" -ForegroundColor Yellow
+        }
+    }
+
+    # 处理排序逻辑
+    $sorted = if ($s) { 
+        $videoDurations | Sort-Object Duration -Descending 
+    } else { 
+        $videoDurations | Sort-Object Duration 
+    }
+
+    # 处理显示逻辑
+    if ($l) {
+        $sorted | ForEach-Object {
+            $formatted = Format-Duration $_.Duration
+            Write-Host "$($_.Name)".PadRight(50) -NoNewline
+            Write-Host $formatted -ForegroundColor Cyan
+        }
+    }
+
+    # 计算总时长
+    $total = ($videoDurations | Measure-Object -Property Duration -Sum).Sum
+    $totalFormatted = Format-Duration $total
+
+    # 显示统计信息
+    if ($n -gt 0) {
+        Write-Host "`n总播放时长: $totalFormatted" -ForegroundColor Green
+        Write-Host "`n时长最长的前$n 个视频:`n" -ForegroundColor Yellow
+        $sorted | Select-Object -First $n | ForEach-Object {
+            $formatted = Format-Duration $_.Duration
+            [PSCustomObject]@{
+                文件名 = $_.Name
+                路径   = $_.Path
+                时长   = $formatted
+            }
+        } | Format-Table -AutoSize -Wrap
     }
 }
 
@@ -651,6 +735,8 @@ function Show-Help
 		pst - Retrieves text from the clipboard.
 
     Get-OllamaModels -ModelName "llama2" [-RetryInterval 60] [-MaxAttempts 10] - download ollama model and speed up .# 加载 llama2 模型，默认每隔 60 秒重启下载进程，最多尝试 10 次 
+
+    Get-VideoDuration -Path "D:\Videos" [-l 每个视频的时长信息] [-s 时长降序排序] [-n ][10] - get videos duration # 获取指定目录下的视频文件的播放时长信息
 
 		Use 'Show-Help' to display this help message.
 "@
