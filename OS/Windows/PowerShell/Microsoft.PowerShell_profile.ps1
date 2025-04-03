@@ -70,7 +70,31 @@ if(Get-Module -ListAvailable -Name "PSFzf" -ErrorAction Stop)
 #-------------------------------  Set Hot-keys END    -------------------------------
 #==================== prompt ===========
 # Admin Check and Prompt Customization
-$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
+# function Get-OS{
+#   $os = Get-CimInstance -ClassName Win32_OperatingSystem
+#   $os.Caption
+# }
+
+# $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if ($IsWindows)
+{
+  $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    #opt-out of telemetry before doing anything, only if PowerShell is run as admin
+    if ([bool]([System.Security.Principal.WindowsIdentity]::GetCurrent()).IsSystem)
+    {
+      [System.Environment]::SetEnvironmentVariable('POWERSHELL_TELEMETRY_OPTOUT', 'true', [System.EnvironmentVariableTarget]::Machine)
+    }
+  $UserName = $env:UserName;
+} elseif ($isLinux)
+{
+  $isAdmin = (id -u) -eq 0
+  $UserName = $env:USER;
+} else
+{
+  $isAdmin = $false
+    echo "Not Windows or Linux"
+}
 
 $adminSuffix = if ($isAdmin)
 { " [ADMIN]" 
@@ -83,7 +107,6 @@ $adminSuffix = if ($isAdmin)
 function Prompt
 {
   $id = 1;
-  $UserName = $env:UserName;
   $hostname = hostname;
   $historyItem = Get-History -Count 1;
   if ($historyItem)
@@ -106,11 +129,6 @@ function Prompt
 
 #=================== 自定义函数 =========
 # 部分函数参考：https://github.com/ChrisTitusTech/powershell-profile/blob/main/Microsoft.PowerShell_profile.ps1
-#opt-out of telemetry before doing anything, only if PowerShell is run as admin
-if ([bool]([System.Security.Principal.WindowsIdentity]::GetCurrent()).IsSystem)
-{
-  [System.Environment]::SetEnvironmentVariable('POWERSHELL_TELEMETRY_OPTOUT', 'true', [System.EnvironmentVariableTarget]::Machine)
-}
 
 # Initial GitHub.com connectivity check with 1 second timeout
 $canConnectToGitHub = Test-Connection github.com -Count 1 -Quiet -TimeoutSeconds 1
@@ -415,11 +433,14 @@ function k9
 }
 
 # Enhanced Listing
-function la
-{ Get-ChildItem -Path . -Force | Format-Table -AutoSize 
-}
-function ll
-{ Get-ChildItem -Path . -Force -Hidden | Format-Table -AutoSize 
+if($isWindows)
+{
+  function la
+  { Get-ChildItem -Path . -Force | Format-Table -AutoSize 
+  }
+  function ll
+  { Get-ChildItem -Path . -Force -Hidden | Format-Table -AutoSize 
+  }
 }
 
 # Git Shortcuts
@@ -708,9 +729,9 @@ function Show-Help
 
 		k9 <name> - Kills a process by name.
 
-		la - Lists all files in the current directory with detailed formatting.
+		la - Lists all files in the current directory with detailed formatting.(only on windows)
 
-		ll - Lists all files, including hidden, in the current directory with detailed formatting.
+		ll - Lists all files, including hidden, in the current directory with detailed formatting.(only on windows)
 
 		gits - Shortcut for 'git status'.
 
