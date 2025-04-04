@@ -141,11 +141,6 @@ if (-not (Get-Module -ListAvailable -Name Terminal-Icons))
 }
 Import-Module -Name Terminal-Icons
 
-$ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-if (Test-Path($ChocolateyProfile))
-{
-  Import-Module "$ChocolateyProfile"
-}
 
 # Check for Profile Updates
 function Update-Profile
@@ -184,6 +179,13 @@ function  Get-TerminialImages
   
 }
 
+if($isWindows)
+{
+$ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+if (Test-Path($ChocolateyProfile))
+{
+  Import-Module "$ChocolateyProfile"
+}
 # 生成新的 hosts 文件 https://answers.microsoft.com/zh-hans/windows/forum/all/hosts%E6%96%87%E4%BB%B6%E4%B8%A2%E5%A4%B1%E6%88%96/a4353b28-8d8a-468e-a7a5-db132ceb36d5
 function Set-Hosts-Tip()
 {
@@ -433,8 +435,6 @@ function k9
 }
 
 # Enhanced Listing
-if($isWindows)
-{
   function la
   { Get-ChildItem -Path . -Force | Format-Table -AutoSize 
   }
