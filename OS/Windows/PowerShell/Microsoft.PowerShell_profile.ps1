@@ -127,7 +127,26 @@ function Prompt
 		$Host.UI.RawUI.WindowTitle = "$(Get-Location)"
 }
 
+# Enhanced PowerShell Experience
+Set-PSReadLineOption -Colors @{
+  Command = 'Yellow'
+		Parameter = 'Green'
+		String = 'DarkCyan'
+}
+
+$PSROptions = @{
+  ContinuationPrompt = '  '
+		Colors             = @{
+    Parameter          = $PSStyle.Foreground.Magenta
+				Selection          = $PSStyle.Background.Black
+				InLinePrediction   = $PSStyle.Foreground.BrightYellow + $PSStyle.Background.BrightBlack
+		}
+}
+Set-PSReadLineOption @PSROptions
 #=================== 自定义函数 =========
+
+if ($isWindows){
+
 # 部分函数参考：https://github.com/ChrisTitusTech/powershell-profile/blob/main/Microsoft.PowerShell_profile.ps1
 
 # Initial GitHub.com connectivity check with 1 second timeout
@@ -141,6 +160,11 @@ if (-not (Get-Module -ListAvailable -Name Terminal-Icons))
 }
 Import-Module -Name Terminal-Icons
 
+$ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+if (Test-Path($ChocolateyProfile))
+{
+  Import-Module "$ChocolateyProfile"
+}
 
 # Check for Profile Updates
 function Update-Profile
@@ -179,13 +203,6 @@ function  Get-TerminialImages
   
 }
 
-if($isWindows)
-{
-$ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-if (Test-Path($ChocolateyProfile))
-{
-  Import-Module "$ChocolateyProfile"
-}
 # 生成新的 hosts 文件 https://answers.microsoft.com/zh-hans/windows/forum/all/hosts%E6%96%87%E4%BB%B6%E4%B8%A2%E5%A4%B1%E6%88%96/a4353b28-8d8a-468e-a7a5-db132ceb36d5
 function Set-Hosts-Tip()
 {
@@ -435,50 +452,14 @@ function k9
 }
 
 # Enhanced Listing
-  function la
-  { Get-ChildItem -Path . -Force | Format-Table -AutoSize 
-  }
-  function ll
-  { Get-ChildItem -Path . -Force -Hidden | Format-Table -AutoSize 
-  }
+function la
+{ Get-ChildItem -Path . -Force | Format-Table -AutoSize 
+}
+function ll
+{ Get-ChildItem -Path . -Force -Hidden | Format-Table -AutoSize 
 }
 
-# Git Shortcuts
-function gits
-{ git status 
-}
 
-function gita
-{ git add . 
-}
-
-function gitc
-{ param($m) git commit -m "$m" 
-}
-
-function gitp
-{ git push 
-}
-
-function g
-{ __zoxide_z github 
-}
-
-function gitcl
-{ git clone "$args" 
-}
-
-function gitcom
-{
-  git add .
-		git commit -m "$args"
-}
-function lazyg
-{
-  git add .
-		git commit -m "$args"
-		git push
-}
 
 # Quick Access to System Information
 function sysinfo
@@ -501,22 +482,6 @@ function pst
 { Get-Clipboard 
 }
 
-# Enhanced PowerShell Experience
-Set-PSReadLineOption -Colors @{
-  Command = 'Yellow'
-		Parameter = 'Green'
-		String = 'DarkCyan'
-}
-
-$PSROptions = @{
-  ContinuationPrompt = '  '
-		Colors             = @{
-    Parameter          = $PSStyle.Foreground.Magenta
-				Selection          = $PSStyle.Background.Black
-				InLinePrediction   = $PSStyle.Foreground.BrightYellow + $PSStyle.Background.BrightBlack
-		}
-}
-Set-PSReadLineOption @PSROptions
 
 # ollama model download and speed up
 # 因为 ollama 下载模型速度速度会越来越慢慢，所以可以使用该函数利用ollama的自动续传功能进行下载
@@ -655,6 +620,30 @@ function Get-VideoDuration {
     }
 }
 
+## 自动切换中英文输入，避免每次启动的时候都是中文输入，每次tab切换窗口之后都会自动切换中文，fuck Windows，不然只能添加英文键盘，修改默认英文en-US键盘。模拟按下键盘 shift 键
+function Switch-ChineseEnglishMode {
+  if ($isWindows)
+  {
+# 添加Windows Forms引用以使用SendKeys功能
+    Add-Type -AssemblyName System.Windows.Forms
+# 模拟按下Shift键来切换中英文输入
+    [System.Windows.Forms.SendKeys]::SendWait("+")
+
+# 或者使用以下命令模拟Ctrl+Space组合键
+# [System.Windows.Forms.SendKeys]::SendWait("^{SPACE}")
+
+# Write-Host "已尝试切换中英文输入模式"
+  }
+  # linux 一般不需要自动切换，先注释掉
+  # else
+  # {
+  #   Write-Host "当前操作系统不支持自动切换中英文输入模式"
+  # }
+}
+
+switch-chineseenglishmode
+
+
 # Help Function
 function Show-Help
 {
@@ -763,3 +752,74 @@ function Show-Help
 "@
 }
 Write-Host "Use 'Show-Help' to display help"
+}
+
+
+## 添加一些 Linux 环境下的设置 ======================================================
+if ($isLinux){
+
+  # 设置 sudo ， Linux 下的 pwsh 调用 sudo 的时候无法识别 pwsh 的命令, sudo pwsh -c
+function sudo {
+    param (
+        [Parameter(ValueFromRemainingArguments=$true)]
+        [string[]]$Commands
+    )
+    
+    # 检查命令是否为 PowerShell cmdlet/函数或外部命令
+    $firstCmd = $Commands[0]
+    $isPwshCommand = $null -ne (Get-Command -Name $firstCmd -ErrorAction SilentlyContinue)
+    
+    if ($isPwshCommand) {
+        # PowerShell 命令
+        $cmdString = $Commands -join ' '
+        # 避免重复 pwsh -c 调用
+        /usr/bin/sudo pwsh -c "$cmdString"
+    }
+    else {
+        # 可能是系统命令
+        /usr/bin/sudo $Commands
+    }
+}
+
+
+}
+
+
+## Linux 和 Windows 共享的函数 =======================================
+
+# Git Shortcuts
+function gits
+{ git status 
+}
+
+function gita
+{ git add . 
+}
+
+function gitc
+{ param($m) git commit -m "$m" 
+}
+
+function gitp
+{ git push 
+}
+
+function g
+{ __zoxide_z github 
+}
+
+function gitcl
+{ git clone "$args" 
+}
+
+function gitcom
+{
+  git add .
+		git commit -m "$args"
+}
+function lazyg
+{
+  git add .
+		git commit -m "$args"
+		git push
+}
