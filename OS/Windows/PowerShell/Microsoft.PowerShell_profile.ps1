@@ -59,6 +59,10 @@ Set-PSReadLineKeyHandler -Key "Ctrl+k" -Function DeleteToEnd
 Set-PSReadLineKeyHandler -Key "Ctrl+a" -Function BeginningOfLine
 Set-PSReadLineKeyHandler -Key "Ctrl+e" -Function EndOfLine
 
+# 设置 Ctrl+LeftArrow/RightArrow 为向左/右移动一个单词，Windows 下默认设置，Linux下需要单独设置
+Set-PSReadLineKeyHandler -Key "Ctrl+RightArrow" -Function NextWord
+Set-PSReadLineKeyHandler -Key "Ctrl+RightArrow" -Function NextWord
+
 # 设置 Ctrl+r 加载 fzf 历史记录
 if(Get-Module -ListAvailable -Name "PSFzf" -ErrorAction Stop)
 {
