@@ -631,10 +631,10 @@ function Switch-ChineseEnglishMode {
 # 添加Windows Forms引用以使用SendKeys功能
     Add-Type -AssemblyName System.Windows.Forms
 # 模拟按下Shift键来切换中英文输入
-    [System.Windows.Forms.SendKeys]::SendWait("+")
+    # [System.Windows.Forms.SendKeys]::SendWait("+")
 
 # 或者使用以下命令模拟Ctrl+Space组合键
-# [System.Windows.Forms.SendKeys]::SendWait("^{SPACE}")
+[System.Windows.Forms.SendKeys]::SendWait("^{SPACE}")
 
 # Write-Host "已尝试切换中英文输入模式"
   }
