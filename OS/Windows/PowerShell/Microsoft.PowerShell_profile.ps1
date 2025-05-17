@@ -634,7 +634,8 @@ function Switch-ChineseEnglishMode {
     # [System.Windows.Forms.SendKeys]::SendWait("+")
 
 # 或者使用以下命令模拟Ctrl+Space组合键
-[System.Windows.Forms.SendKeys]::SendWait("^{SPACE}")
+# [System.Windows.Forms.SendKeys]::SendWait("^{SPACE}")
+[System.Windows.Forms.SendKeys]::SendWait("^( )")
 
 # Write-Host "已尝试切换中英文输入模式"
   }
